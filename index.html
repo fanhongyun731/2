@@ -2578,6 +2578,7 @@
         ]; 
 
 
+
         // 存储用户的错题
         let wrongQuestions = JSON.parse(localStorage.getItem('wrongQuestions')) || [];
         let currentQuestionIndex = 0;
@@ -2587,6 +2588,8 @@
         let filteredWrongQuestions = [...wrongQuestions];
         // 单次答题的题目数量
         const QUESTION_COUNT = 15;
+        // 存储打乱后的题目
+        let shuffledQuestions = [];
 
         // DOM 元素
         const mainPage = document.getElementById('main-page');
@@ -2635,6 +2638,16 @@
             renderWrongQuestions();
         }
 
+        // 数组随机打乱函数
+        function shuffleArray(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+
         // 开始答题
         function startQuiz() {
             isPracticeMode = false;
@@ -2644,7 +2657,10 @@
             mainPage.style.display = 'none';
             quizPage.style.display = 'block';
             wrongQuestionPage.style.display = 'none';
-            loadQuestion(questions[currentQuestionIndex]);
+            
+            // 打乱题目顺序并抽取前15题
+            shuffledQuestions = shuffleArray([...questions]).slice(0, QUESTION_COUNT);
+            loadQuestion(shuffledQuestions[currentQuestionIndex]);
             updateProgressBar();
         }
 
@@ -2662,7 +2678,10 @@
             mainPage.style.display = 'none';
             quizPage.style.display = 'block';
             wrongQuestionPage.style.display = 'none';
-            loadQuestion(wrongQuestions[currentQuestionIndex]);
+            
+            // 打乱错题顺序
+            shuffledQuestions = shuffleArray([...wrongQuestions]);
+            loadQuestion(shuffledQuestions[currentQuestionIndex]);
             updateProgressBar();
         }
 
@@ -2746,7 +2765,7 @@
             
             optionDiv.addEventListener('click', () => {
                 // 如果是单选题或判断题，取消其他选项的选中状态
-                const currentQuestion = isPracticeMode ? wrongQuestions[currentQuestionIndex] : questions[currentQuestionIndex];
+                const currentQuestion = isPracticeMode ? shuffledQuestions[currentQuestionIndex] : shuffledQuestions[currentQuestionIndex];
                 if (currentQuestion.type === 'single' || currentQuestion.type === 'judgment') {
                     const allOptions = document.querySelectorAll('.option');
                     allOptions.forEach(opt => opt.classList.remove('selected'));
@@ -2783,7 +2802,7 @@
             
             // 模拟加载延迟
             setTimeout(() => {
-                const currentQuestion = isPracticeMode ? wrongQuestions[currentQuestionIndex] : questions[currentQuestionIndex];
+                const currentQuestion = isPracticeMode ? shuffledQuestions[currentQuestionIndex] : shuffledQuestions[currentQuestionIndex];
                 const isCorrect = selectedAnswer === currentQuestion.answer;
                 
                 // 更新分数
@@ -2837,7 +2856,7 @@
             }
             
             if (type === 'multiple') {
-                const currentQuestion = isPracticeMode ? wrongQuestions[currentQuestionIndex] : questions[currentQuestionIndex];
+                const currentQuestion = isPracticeMode ? shuffledQuestions[currentQuestionIndex] : shuffledQuestions[currentQuestionIndex];
                 return answer.split('').map(letter => {
                     if (currentQuestion.type === 'judgment') {
                         return letter === 'A' ? '正确' : '错误';
@@ -2846,7 +2865,7 @@
                 }).join('; ');
             }
             
-            const currentQuestion = isPracticeMode ? wrongQuestions[currentQuestionIndex] : questions[currentQuestionIndex];
+            const currentQuestion = isPracticeMode ? shuffledQuestions[currentQuestionIndex] : shuffledQuestions[currentQuestionIndex];
             if (currentQuestion.type === 'judgment') {
                 return answer === 'A' ? '正确' : '错误';
             }
@@ -2868,12 +2887,11 @@
 
         // 下一题
         function nextQuestion() {
-            const questionList = isPracticeMode ? wrongQuestions : questions;
-            const totalQuestions = isPracticeMode ? questionList.length : Math.min(QUESTION_COUNT, questionList.length);
+            const totalQuestions = shuffledQuestions.length;
             
             if (currentQuestionIndex < totalQuestions - 1) {
                 currentQuestionIndex++;
-                loadQuestion(questionList[currentQuestionIndex]);
+                loadQuestion(shuffledQuestions[currentQuestionIndex]);
                 updateProgressBar();
             } else {
                 // 所有题目已完成
@@ -2884,8 +2902,7 @@
 
         // 更新进度条
         function updateProgressBar() {
-            const questionList = isPracticeMode ? wrongQuestions : questions;
-            const totalQuestions = isPracticeMode ? questionList.length : Math.min(QUESTION_COUNT, questionList.length);
+            const totalQuestions = shuffledQuestions.length;
             const progressPercentage = ((currentQuestionIndex + 1) / totalQuestions) * 100;
             progressBar.style.width = `${progressPercentage}%`;
         }
@@ -2967,6 +2984,8 @@
                     mainPage.style.display = 'none';
                     quizPage.style.display = 'block';
                     wrongQuestionPage.style.display = 'none';
+                    // 打乱错题顺序
+                    shuffledQuestions = shuffleArray([...wrongQuestions]);
                     loadQuestion(wrongQuestions[currentQuestionIndex]);
                     updateProgressBar();
                 });
@@ -3038,6 +3057,8 @@
                         quizPage.style.display = 'block';
                         wrongQuestionPage.style.display = 'none';
                         searchResults.style.display = 'none';
+                        // 打乱错题顺序
+                        shuffledQuestions = shuffleArray([...wrongQuestions]);
                         loadQuestion(wrongQuestions[currentQuestionIndex]);
                         updateProgressBar();
                     });
@@ -3052,50 +3073,48 @@
         // 隐藏搜索结果
         function hideSearchResults() {
             searchResults.style.display = 'none';
-        }
-
-        // 重置错题本
-        function resetWrongQuestions() {
-            if (confirm('确定要清空所有错题记录吗？')) {
-                wrongQuestions = [];
-                filteredWrongQuestions = [];
-                localStorage.setItem('wrongQuestions', JSON.stringify(wrongQuestions));
-                renderWrongQuestions();
             }
-        }
 
-        // 过滤错题
-        function filterWrongQuestions() {
-            const category = categoryFilter.value;
-            const keyword = searchInput.value.trim().toLowerCase();
-            
-            // 重置过滤后的列表
+    // 重置错题本
+    function resetWrongQuestions() {
+        if (confirm('确定要清空所有错题记录吗？')) {
+            wrongQuestions = [];
             filteredWrongQuestions = [];
-            
-            // 为每个错题添加原始索引，以便在删除时定位
-            wrongQuestions.forEach((q, i) => {
-                q.__originalIndex = i;
-            });
-            
-            // 先按分类过滤
-            filteredWrongQuestions = category === 'all' 
-                ? [...wrongQuestions] 
-                : wrongQuestions.filter(q => q.type === category);
-            
-            // 再按关键词过滤
-            if (keyword) {
-                filteredWrongQuestions = filteredWrongQuestions.filter(question => 
-                    question.question.toLowerCase().includes(keyword) ||
-                    (question.options && question.options.some(option => option.toLowerCase().includes(keyword))) ||
-                    formatAnswer(question.answer, question.type).toLowerCase().includes(keyword)
-                );
-            }
-            
+            localStorage.setItem('wrongQuestions', JSON.stringify(wrongQuestions));
             renderWrongQuestions();
         }
+    }
 
-        // 初始化应用
-        init();
-    </script>
-</body>
-</html>
+    // 过滤错题
+    function filterWrongQuestions() {
+        const category = categoryFilter.value;
+        const keyword = searchInput.value.trim().toLowerCase();
+        
+        // 重置过滤后的列表
+        filteredWrongQuestions = [];
+        
+        // 为每个错题添加原始索引，以便在删除时定位
+        wrongQuestions.forEach((q, i) => {
+            q.__originalIndex = i;
+        });
+        
+        // 先按分类过滤
+        filteredWrongQuestions = category === 'all' 
+            ? [...wrongQuestions] 
+            : wrongQuestions.filter(q => q.type === category);
+        
+        // 再按关键词过滤
+        if (keyword) {
+            filteredWrongQuestions = filteredWrongQuestions.filter(question => 
+                question.question.toLowerCase().includes(keyword) ||
+                (question.options && question.options.some(option => option.toLowerCase().includes(keyword))) ||
+                formatAnswer(question.answer, question.type).toLowerCase().includes(keyword)
+            );
+        }
+        
+        renderWrongQuestions();
+    }
+
+    // 初始化应用
+    init();
+</script>
